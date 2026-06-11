@@ -1,0 +1,38 @@
+<idea-plugin>
+    <id>se.seedba.jetbrains</id>
+    <name>SeedBase</name>
+    <vendor url="https://seedba.se">SeedBase</vendor>
+
+    <description><![CDATA[
+        Browse your <a href="https://seedba.se">SeedBase</a> projects, generate realistic synthetic
+        test data and pull SQL/CSV/JSON seeds straight into your project &mdash; without leaving the IDE.
+        <ul>
+            <li><b>SeedBase tool window</b>: all projects with their generations at a glance</li>
+            <li><b>Generate Data</b>: kick off a generation and get notified when it completes</li>
+            <li><b>Pull into Project</b>: download a generation as SQL, CSV or JSON and open it in the editor</li>
+            <li><b>Secure login</b>: browser-based authorization, token stored in the IDE's Password Safe</li>
+        </ul>
+    ]]></description>
+
+    <change-notes><![CDATA[
+        <b>0.2.0</b>
+        <ul>
+            <li><b>Push Schema</b>: turn workspace schema files into a SeedBase project schema &mdash; Django
+                <code>models.py</code> (all apps combined automatically), Prisma and SQL, with a
+                detect preview and confirmation before applying</li>
+        </ul>
+        <b>0.1.0</b>
+        <ul>
+            <li>Initial release: tool window with projects &amp; generations, browser-based login
+                (Password Safe), Generate Data, Pull SQL/CSV/JSON, Open in Browser</li>
+        </ul>
+    ]]></change-notes>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow id="SeedBase" anchor="right" icon="/icons/seedbase.svg"
+                    factoryClass="se.seedba.jetbrains.toolwindow.SeedbaseToolWindowFactory"/>
+        <notificationGroup id="SeedBase" displayType="BALLOON"/>
+    </extensions>
+</idea-plugin>
