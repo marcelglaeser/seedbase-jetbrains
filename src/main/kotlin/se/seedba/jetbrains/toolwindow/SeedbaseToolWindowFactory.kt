@@ -19,7 +19,6 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.vfs.LocalFileSystem
-import com.intellij.ui.SimpleListCellRenderer
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.ColoredTreeCellRenderer
@@ -386,13 +385,17 @@ class SeedbasePanel(private val ideProject: Project) {
                             NotificationType.INFORMATION,
                         )
                         candidates.size == 1 -> detectAndApply(token, project, base, candidates.first())
-                        else -> JBPopupFactory.getInstance()
-                            .createPopupChooserBuilder(candidates)
-                            .setTitle("Select Schema Source")
-                            .setRenderer(SimpleListCellRenderer.create("") { it.label })
-                            .setItemChosenCallback { detectAndApply(token, project, base, it) }
-                            .createPopup()
-                            .showCenteredInCurrentWindow(ideProject)
+                        else -> {
+                            val byLabel = candidates.associateBy { it.label }
+                            JBPopupFactory.getInstance()
+                                .createPopupChooserBuilder(candidates.map { it.label })
+                                .setTitle("Select Schema Source")
+                                .setItemChosenCallback { label ->
+                                    byLabel[label]?.let { detectAndApply(token, project, base, it) }
+                                }
+                                .createPopup()
+                                .showCenteredInCurrentWindow(ideProject)
+                        }
                     }
                 }
             }.queue()
