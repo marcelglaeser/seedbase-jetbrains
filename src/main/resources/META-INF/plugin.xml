@@ -12,11 +12,26 @@
             <li><b>Pull into Project</b>: download a generation as SQL, CSV or JSON and open it in the editor</li>
             <li><b>Secure login</b>: browser-based authorization, token stored in the IDE's Password Safe</li>
         </ul>
+        <p><b>Getting started:</b> create a <b>free</b> account at
+        <a href="https://seedba.se/register">seedba.se</a> (no credit card), then click the key icon in
+        the tool window to sign in. The free tier is enough to generate full, foreign-key-consistent
+        datasets for your schema.</p>
+        <p>More about the plugin: <a href="https://seedba.se/jetbrains">seedba.se/jetbrains</a>.</p>
     ]]></description>
 
     <change-notes><![CDATA[
+        <b>0.2.3</b>
+        <ul>
+            <li>Clearer upgrade hint: when an export format is not available on your plan (for example Parquet on the Free plan), the error now points to upgrading to Pro instead of showing a generic failure. Free includes SQL, CSV and JSON.</li>
+            <li>Sign-in no longer briefly blocks the UI thread: the whole login (initiate + poll) now runs in the background.</li>
+        </ul>
+        <b>0.2.2</b>
+        <ul>
+            <li>Fixed a UI freeze: the credential store is no longer read on the EDT (tool window open and toolbar updates were doing a synchronous keychain lookup). Login state is now cached in memory and the token is read off the UI thread.</li>
+        </ul>
         <b>0.2.1</b>
         <ul>
+            <li>Clearer onboarding: the tool window and description now point to the free seedba.se account needed to sign in</li>
             <li>Replaced deprecated platform APIs (credential store, list renderer) for forward compatibility with 2026.2+</li>
         </ul>
         <b>0.2.0</b>

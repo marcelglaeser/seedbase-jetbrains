@@ -65,7 +65,8 @@ private data class GenerationNode(val data: JsonObject, val projectId: String) {
 }
 
 private object LoggedOutNode {
-    override fun toString(): String = "Not logged in — use the key icon to sign in"
+    override fun toString(): String =
+        "Not signed in. Create a free account at seedba.se (no card), then click the key icon to sign in."
 }
 
 private object EmptyGenerationsNode {
@@ -185,12 +186,12 @@ class SeedbasePanel(private val ideProject: Project) {
     }
 
     fun refresh() {
-        val token = TokenStore.get()
-        if (token == null) {
-            setNodes(listOf(DefaultMutableTreeNode(LoggedOutNode)))
-            return
-        }
         ApplicationManager.getApplication().executeOnPooledThread {
+            val token = TokenStore.get()
+            if (token == null) {
+                setNodes(listOf(DefaultMutableTreeNode(LoggedOutNode)))
+                return@executeOnPooledThread
+            }
             try {
                 val projects = SeedbaseApi.listProjects(token)
                 val nodes = projects.map { project ->
@@ -232,21 +233,17 @@ class SeedbasePanel(private val ideProject: Project) {
         override fun getActionUpdateThread() = ActionUpdateThread.EDT
 
         override fun update(e: AnActionEvent) {
-            e.presentation.isEnabled = TokenStore.get() == null
+            e.presentation.isEnabled = !TokenStore.isLoggedIn()
         }
 
         override fun actionPerformed(e: AnActionEvent) {
-            val init = try {
-                SeedbaseApi.initiateLogin()
-            } catch (exc: Exception) {
-                notifyUser(ideProject, "SeedBase login failed: ${exc.message}", NotificationType.ERROR)
-                return
-            }
-            if (init.browserUrl.isNotEmpty()) {
-                BrowserUtil.browse(init.browserUrl)
-            }
-            object : Task.Backgroundable(ideProject, "SeedBase: waiting for authorization (code ${init.code})…", true) {
+            object : Task.Backgroundable(ideProject, "SeedBase: signing in…", true) {
                 override fun run(indicator: ProgressIndicator) {
+                    val init = SeedbaseApi.initiateLogin()
+                    if (init.browserUrl.isNotEmpty()) {
+                        ApplicationManager.getApplication().invokeLater { BrowserUtil.browse(init.browserUrl) }
+                    }
+                    indicator.text = "SeedBase: waiting for authorization (code ${init.code})…"
                     val token = SeedbaseApi.pollForToken(init.pollUrl) { indicator.checkCanceled() }
                     TokenStore.set(token)
                 }
@@ -267,7 +264,7 @@ class SeedbasePanel(private val ideProject: Project) {
         override fun getActionUpdateThread() = ActionUpdateThread.EDT
 
         override fun update(e: AnActionEvent) {
-            e.presentation.isEnabled = TokenStore.get() != null
+            e.presentation.isEnabled = TokenStore.isLoggedIn()
         }
 
         override fun actionPerformed(e: AnActionEvent) {
@@ -289,11 +286,11 @@ class SeedbasePanel(private val ideProject: Project) {
         override fun getActionUpdateThread() = ActionUpdateThread.EDT
 
         override fun update(e: AnActionEvent) {
-            e.presentation.isEnabled = TokenStore.get() != null && selectedProjectNode() != null
+            e.presentation.isEnabled = TokenStore.isLoggedIn() && selectedProjectNode() != null
         }
 
         override fun actionPerformed(e: AnActionEvent) {
-            val token = TokenStore.get() ?: return
+            val token = TokenStore.cachedToken() ?: return
             val project = selectedProjectNode() ?: return
             object : Task.Backgroundable(ideProject, "SeedBase: generating data for '${project.name}'…", true) {
                 override fun run(indicator: ProgressIndicator) {
@@ -357,11 +354,11 @@ class SeedbasePanel(private val ideProject: Project) {
         override fun getActionUpdateThread() = ActionUpdateThread.EDT
 
         override fun update(e: AnActionEvent) {
-            e.presentation.isEnabled = TokenStore.get() != null && selectedProjectNode() != null
+            e.presentation.isEnabled = TokenStore.isLoggedIn() && selectedProjectNode() != null
         }
 
         override fun actionPerformed(e: AnActionEvent) {
-            val token = TokenStore.get() ?: return
+            val token = TokenStore.cachedToken() ?: return
             val project = selectedProjectNode() ?: return
             val basePath = ideProject.basePath
             if (basePath == null) {
@@ -487,11 +484,11 @@ class SeedbasePanel(private val ideProject: Project) {
         override fun update(e: AnActionEvent) {
             val generation = selectedGenerationNode()
             e.presentation.isEnabled =
-                TokenStore.get() != null && generation != null && generation.status == "completed"
+                TokenStore.isLoggedIn() && generation != null && generation.status == "completed"
         }
 
         override fun actionPerformed(e: AnActionEvent) {
-            val token = TokenStore.get() ?: return
+            val token = TokenStore.cachedToken() ?: return
             val generation = selectedGenerationNode() ?: return
             val basePath = ideProject.basePath
             if (basePath == null) {

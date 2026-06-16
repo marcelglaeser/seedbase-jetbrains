@@ -82,7 +82,14 @@ object SeedbaseApi {
         }
         if (parsed != null && parsed.isJsonObject) {
             val detail = parsed.asJsonObject.str("detail")
-            if (detail.isNotEmpty()) return detail
+            if (detail.isNotEmpty()) {
+                val upgrade = try {
+                    parsed.asJsonObject.get("upgrade")?.asBoolean == true
+                } catch (_: Exception) {
+                    false
+                }
+                return if (upgrade) "$detail Upgrade to Pro to unlock this export format: seedba.se/pricing" else detail
+            }
             if (parsed.asJsonObject.size() > 0) {
                 return "Request failed ($status): ${parsed.toString().take(300)}"
             }
@@ -152,7 +159,7 @@ object SeedbaseApi {
             HttpRequest.newBuilder(URI.create("$base/cli/auth/initiate/"))
                 .header("Accept", "application/json")
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString("{}")),
+                .POST(HttpRequest.BodyPublishers.ofString("{\"client\":\"jetbrains\"}")),
         )
         if (resp.statusCode() !in 200..299) {
             throw SeedbaseApiException("Login initiation failed (${resp.statusCode()})")
