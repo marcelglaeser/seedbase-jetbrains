@@ -4,12 +4,19 @@
     <vendor url="https://seedba.se">SeedBase</vendor>
 
     <description><![CDATA[
-        Browse your <a href="https://seedba.se">SeedBase</a> projects, generate realistic synthetic
-        test data and pull SQL/CSV/JSON seeds straight into your project &mdash; without leaving the IDE.
+        Generate realistic, foreign-key-consistent test data from your database schema, right inside
+        your JetBrains IDE. Point it at a SQL dump, Django <code>models.py</code>, a Prisma schema, or a
+        live Postgres/MySQL connection, and get a full dataset where every foreign key resolves and the
+        data actually looks real, not "Premium Widget 1" and lorem ipsum.
+        <p>Want to see the output first? Try the login-free sandbox in your browser:
+        <a href="https://seedba.se/playground">seedba.se/playground</a>.</p>
         <ul>
-            <li><b>SeedBase tool window</b>: all projects with their generations at a glance</li>
-            <li><b>Generate Data</b>: kick off a generation and get notified when it completes</li>
-            <li><b>Pull into Project</b>: download a generation as SQL, CSV or JSON and open it in the editor</li>
+            <li><b>New Project from Schema</b>: turn a workspace SQL dump, Django <code>models.py</code> or a Prisma schema into a project, DB type detected automatically, pick which tables to send, large dumps streamed</li>
+            <li><b>Push Schema</b>: update a project from your schema files with a checkbox table picker</li>
+            <li><b>Generate Data</b> and <b>Preview Data</b>: build a foreign-key-consistent dataset and view sample rows in a table inside the IDE</li>
+            <li><b>Insert Test Data at Caret</b>: drop FK-consistent rows into the open file, formatted for the file type (SQL/PHP/Python/JSON)</li>
+            <li><b>Mock API</b> and <b>Upload OpenAPI</b>: serve a project as a live REST API with a built-in Swagger Explorer, or bring your own OpenAPI contract</li>
+            <li><b>Pull</b> a generation as SQL, CSV or JSON, or <b>Push to Database</b> (Pro/Team)</li>
             <li><b>Secure login</b>: browser-based authorization, token stored in the IDE's Password Safe</li>
         </ul>
         <p><b>Getting started:</b> create a <b>free</b> account at
@@ -20,6 +27,35 @@
     ]]></description>
 
     <change-notes><![CDATA[
+        <b>0.6.3</b>
+        <ul>
+            <li>Marketplace listing now leads with what you get: realistic, foreign-key-consistent test data that does not look fake, plus a link to the login-free browser sandbox</li>
+        </ul>
+        <b>0.6.2</b>
+        <ul>
+            <li><b>Reset &amp; Reseed</b> now detects table names from INSERT-only exports, so the truncate step works even without CREATE TABLE statements</li>
+        </ul>
+        <b>0.6.1</b>
+        <ul>
+            <li><b>Local database workflow</b>: load, reset and reseed against a local <code>psql</code>/<code>mysql</code>/<code>sqlite</code> connection (auto-detected from <code>.env</code>, docker-compose or <code>schema.prisma</code>), matching the VS Code extension</li>
+        </ul>
+        <b>0.6.0</b>
+        <ul>
+            <li><b>Reset &amp; Reseed</b> and <b>Seed Test Data (generate + load)</b>: full database-workflow parity with the VS Code extension</li>
+            <li><b>Settings</b> (Tools &rarr; SeedBase): configurable preview row count</li>
+        </ul>
+        <b>0.5.x</b>
+        <ul>
+            <li><b>Push to Database</b>: load generated data into a configured connection (Pro/Team)</li>
+            <li><b>Preview Data</b>: view sample rows in a table inside the IDE; wide tables scroll horizontally</li>
+            <li>Decluttered tool window: a slim toolbar plus a context menu; Pull SQL/CSV/JSON merged into one action with a format chooser</li>
+        </ul>
+        <b>0.3.0&ndash;0.4.x</b>
+        <ul>
+            <li><b>New Project from Schema</b> with automatic DB-type detection, table selection and streamed large dumps</li>
+            <li><b>Insert Test Data at Caret</b>, <b>Mock API</b> with a Swagger Explorer, and <b>Upload OpenAPI</b> to serve your own contract</li>
+            <li><b>Delete Generation</b>; clearer error messages and a guard when generating with an empty schema</li>
+        </ul>
         <b>0.2.3</b>
         <ul>
             <li>Clearer upgrade hint: when an export format is not available on your plan (for example Parquet on the Free plan), the error now points to upgrading to Pro instead of showing a generic failure. Free includes SQL, CSV and JSON.</li>
@@ -53,5 +89,7 @@
         <toolWindow id="SeedBase" anchor="right" icon="/icons/seedbase.svg"
                     factoryClass="se.seedba.jetbrains.toolwindow.SeedbaseToolWindowFactory"/>
         <notificationGroup id="SeedBase" displayType="BALLOON"/>
+        <applicationConfigurable parentId="tools" id="se.seedba.settings"
+                                 displayName="SeedBase" instance="se.seedba.jetbrains.settings.SeedbaseConfigurable"/>
     </extensions>
 </idea-plugin>

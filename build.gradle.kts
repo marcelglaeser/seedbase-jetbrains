@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "se.seedba"
-version = "0.2.3"
+version = "0.6.3"
 
 repositories {
     mavenCentral()

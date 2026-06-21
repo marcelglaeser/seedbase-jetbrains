@@ -91,6 +91,22 @@ object SeedbaseApi {
                 return if (upgrade) "$detail Upgrade to Pro to unlock this export format: seedba.se/pricing" else detail
             }
             if (parsed.asJsonObject.size() > 0) {
+                val messages = mutableListOf<String>()
+                for ((key, value) in parsed.asJsonObject.entrySet()) {
+                    val text = when {
+                        value.isJsonArray -> value.asJsonArray
+                            .mapNotNull { it.takeIf { e -> e.isJsonPrimitive }?.asString }
+                            .joinToString(" ")
+                        value.isJsonPrimitive -> value.asString
+                        else -> ""
+                    }
+                    if (text.isNotEmpty()) {
+                        messages.add(if (key == "non_field_errors" || key == "detail") text else "$key: $text")
+                    }
+                }
+                if (messages.isNotEmpty()) {
+                    return messages.joinToString("\n")
+                }
                 return "Request failed ($status): ${parsed.toString().take(300)}"
             }
         }
@@ -284,17 +300,113 @@ object SeedbaseApi {
         }
     }
 
-    private fun schemaPayload(content: String, sourceType: String): String =
+    fun listDbConnections(token: String): List<JsonObject> =
+        requestList(token, "${apiUrl()}/db-connections/")
+
+    fun pushAndWait(token: String, connectionId: String, strategy: String, checkCancelled: () -> Unit): JsonObject {
+        val base = apiUrl()
+        val payload = JsonObject().apply {
+            addProperty("strategy", strategy)
+            add("options", JsonObject().apply { addProperty("insert_data", true) })
+        }.toString()
+        val create = postJson(token, "$base/db-connections/${encode(connectionId)}/push/", payload)
+        val jobId = create.str("job_id")
+        if (jobId.isEmpty()) {
+            throw SeedbaseApiException("Push did not return a job id")
+        }
+        val deadline = System.currentTimeMillis() + GENERATION_TIMEOUT_MS
+        var consecutiveErrors = 0
+        while (true) {
+            checkCancelled()
+            Thread.sleep(POLL_INTERVAL_MS)
+            var status: JsonObject? = null
+            try {
+                val data = getJson(token, "$base/push-jobs/${encode(jobId)}/")
+                status = if (data.isJsonObject) data.asJsonObject else null
+                consecutiveErrors = 0
+            } catch (exc: SeedbaseApiException) {
+                consecutiveErrors += 1
+                if (consecutiveErrors >= 3) throw exc
+            }
+            if (status != null) {
+                when (status.str("status")) {
+                    "completed" -> return status
+                    "failed", "cancelled" -> throw SeedbaseApiException(status.str("error_message").ifEmpty { "Push ${status.str("status")}" })
+                }
+            }
+            if (System.currentTimeMillis() >= deadline) {
+                throw SeedbaseApiException("Push timed out")
+            }
+        }
+    }
+
+    private fun schemaPayload(content: String, sourceType: String, includeTables: List<String>? = null): String =
         JsonObject().apply {
             addProperty("content", content)
             addProperty("source_type", sourceType)
+            if (includeTables != null) {
+                val arr = JsonArray()
+                includeTables.forEach { arr.add(it) }
+                add("include_tables", arr)
+            }
         }.toString()
 
     fun importDetect(token: String, projectId: String, content: String, sourceType: String): JsonObject =
         postJson(token, "${apiUrl()}/datasets/${encode(projectId)}/import/detect/", schemaPayload(content, sourceType))
 
-    fun importSchema(token: String, projectId: String, content: String, sourceType: String): JsonObject =
-        postJson(token, "${apiUrl()}/datasets/${encode(projectId)}/import/", schemaPayload(content, sourceType))
+    fun importSchema(token: String, projectId: String, content: String, sourceType: String, includeTables: List<String>? = null): JsonObject =
+        postJson(token, "${apiUrl()}/datasets/${encode(projectId)}/import/", schemaPayload(content, sourceType, includeTables))
+
+    fun createProject(token: String, name: String, dbType: String): JsonObject =
+        postJson(
+            token,
+            "${apiUrl()}/datasets/",
+            JsonObject().apply {
+                addProperty("name", name)
+                addProperty("db_type", dbType)
+            }.toString(),
+        )
+
+    fun enableMockApi(token: String, projectId: String, generationId: String? = null): JsonObject {
+        val payload = JsonObject().apply {
+            if (!generationId.isNullOrEmpty()) addProperty("generation_id", generationId)
+        }.toString()
+        return postJson(token, "${apiUrl()}/projects/${encode(projectId)}/mock-api/", payload)
+    }
+
+    fun mockApiStatus(token: String, projectId: String): JsonObject {
+        val data = getJson(token, "${apiUrl()}/projects/${encode(projectId)}/mock-api/")
+        return if (data.isJsonObject) data.asJsonObject else JsonObject()
+    }
+
+    fun disableMockApi(token: String, projectId: String) =
+        deleteResource(token, "${apiUrl()}/projects/${encode(projectId)}/mock-api/")
+
+    fun uploadMockSpec(token: String, projectId: String, specText: String): JsonObject =
+        postJson(
+            token,
+            "${apiUrl()}/projects/${encode(projectId)}/mock-api/spec/",
+            JsonObject().apply { addProperty("spec_text", specText) }.toString(),
+        )
+
+    fun deleteGeneration(token: String, generationId: String) =
+        deleteResource(token, "${apiUrl()}/generations/${encode(generationId)}/")
+
+    private fun deleteResource(token: String, url: String) {
+        val resp = send(
+            HttpRequest.newBuilder(URI.create(url))
+                .header("Authorization", authHeader(token))
+                .DELETE(),
+        )
+        if (resp.statusCode() !in 200..299) {
+            throw SeedbaseApiException(errorFromBody(resp.statusCode(), resp.body()))
+        }
+    }
+
+    fun sampleData(token: String, projectId: String, rows: Int): JsonObject {
+        val data = getJson(token, "${apiUrl()}/projects/${encode(projectId)}/sample/?rows=${encode(rows.toString())}")
+        return if (data.isJsonObject) data.asJsonObject else JsonObject()
+    }
 
     fun download(token: String, generationId: String, format: String): ByteArray {
         val url = "${apiUrl()}/generations/${encode(generationId)}/download/?export_format=${encode(format)}"
